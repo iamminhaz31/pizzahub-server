@@ -63,6 +63,7 @@ app.get("/api/me", verifyJWT, (req, res) => {
 
 app.use("/api/debug", require("./routes/debug"));
 app.use("/api/menu-items", require("./routes/menuItems"));
+app.use("/api/menu-items", require("./routes/browseMenu"));
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
