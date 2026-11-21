@@ -4,6 +4,7 @@ const { connectDB } = require("../db");
 const { verifyJWT, requireRole } = require("../middleware/auth");
 const { validateMenuItem } = require("../validators/menuItem");
 const { ACTIVE_STATUSES, FREE_PLAN_LIMIT } = require("../constants/categories");
+const { ACTIVE_ORDER_STATUSES } = require("../constants/orders");
 
 const router = express.Router();
 
@@ -235,8 +236,20 @@ router.delete("/mine/:id", ...vendorOnly, async (req, res, next) => {
   try {
     const db = await connectDB();
     const menuItems = db.collection("menuItems");
-    const item = await loadOwnedItem(req, res, menuItems);
+        const item = await loadOwnedItem(req, res, menuItems);
     if (!item) return;
+
+    // Items with pending or accepted orders must stay until those orders are done.
+    const activeOrders = await db.collection("orders").countDocuments({
+      itemId: item._id,
+      status: { $in: ACTIVE_ORDER_STATUSES },
+    });
+    if (activeOrders > 0) {
+      return res.status(409).json({
+        message:
+          "This item has pending or accepted orders. Finish them before deleting the item, or pause it instead.",
+      });
+    }
 
     await menuItems.deleteOne({ _id: item._id, vendorId: item.vendorId });
     res.json({ message: "Menu item deleted." });
