@@ -11,6 +11,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { connectDB } = require("./db");
+const { verifyJWT } = require("./middleware/auth");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -55,6 +56,12 @@ app.get("/api/health", async (req, res) => {
     });
   }
 });
+
+app.get("/api/me", verifyJWT, (req, res) => {
+  res.json({ user: req.user });
+});
+
+app.use("/api/debug", require("./routes/debug"));
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
