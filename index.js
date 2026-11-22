@@ -73,6 +73,7 @@ app.use("/api/menu-items", require("./routes/browseMenu"));
 app.use("/api/orders", require("./routes/orders"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/payments", require("./routes/payments"));
+app.use("/api/profile", require("./routes/profile"));
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
