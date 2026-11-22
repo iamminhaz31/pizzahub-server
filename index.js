@@ -32,6 +32,12 @@ app.use(
   })
 );
 
+app.post(
+  "/api/payments/webhook",
+  express.raw({ type: "application/json" }),
+  require("./routes/stripeWebhook")
+);
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -66,6 +72,7 @@ app.use("/api/menu-items", require("./routes/menuItems"));
 app.use("/api/menu-items", require("./routes/browseMenu"));
 app.use("/api/orders", require("./routes/orders"));
 app.use("/api/admin", require("./routes/admin"));
+app.use("/api/payments", require("./routes/payments"));
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
