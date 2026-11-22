@@ -184,6 +184,75 @@ router.get("/locations", async (req, res, next) => {
   }
 });
 
+// GET /api/menu-items/featured?limit=6   (public)
+// Items of Premium vendors come first, then the newest items.
+router.get("/featured", async (req, res, next) => {
+  try {
+    const limit = toPositiveInt(req.query.limit, 6, 12);
+    const now = new Date();
+
+    const db = await connectDB();
+    const rows = await db
+      .collection("menuItems")
+      .aggregate([
+        { $match: { status: "approved" } },
+        ...vendorStages(),
+        {
+          $addFields: {
+            premiumRank: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$vendor.subscriptionPlan", "premium"] },
+                    {
+                      $or: [
+                        { $eq: [{ $ifNull: ["$vendor.subscriptionExpiresAt", null] }, null] },
+                        { $gt: ["$vendor.subscriptionExpiresAt", now] },
+                      ],
+                    },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+        { $sort: { premiumRank: -1, createdAt: -1, _id: 1 } },
+        { $limit: limit },
+        { $project: PUBLIC_FIELDS },
+      ])
+      .toArray();
+
+    res.json({ items: rows.map(toPublicItem) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/menu-items/categories   (public)
+// How many approved items each category has, for the homepage.
+router.get("/categories", async (req, res, next) => {
+  try {
+    const db = await connectDB();
+    const rows = await db
+      .collection("menuItems")
+      .aggregate([
+        { $match: { status: "approved" } },
+        ...vendorStages(),
+        { $group: { _id: "$category", count: { $sum: 1 } } },
+      ])
+      .toArray();
+
+    const counts = Object.fromEntries(rows.map((row) => [row._id, row.count]));
+    res.json({
+      categories: CATEGORIES.map((name) => ({ name, count: counts[name] ?? 0 })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/menu-items/:id   (any logged-in user)
 // Only approved items of vendors who are not blocked can be opened.
 router.get("/:id", verifyJWT, async (req, res, next) => {
